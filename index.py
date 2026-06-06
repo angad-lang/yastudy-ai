@@ -1,0 +1,83 @@
+from dotenv import load_dotenv
+from pathlib import Path
+from langchain_community.document_loaders import PyPDFLoader, WebBaseLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_openai import OpenAIEmbeddings
+from langchain_qdrant import QdrantVectorStore
+import uuid
+import hashlib
+
+load_dotenv()
+
+docs = []
+
+# 1. Load All PDFs from 'knowledge_base' folder
+kb_folder = Path(__file__).parent / "knowledge_base"
+if kb_folder.exists():
+    for pdf_path in kb_folder.glob("*.pdf"):
+        print(f"Loading PDF: {pdf_path.name}...")
+        try:
+            pdf_loader = PyPDFLoader(file_path=str(pdf_path))
+            docs.extend(pdf_loader.load())
+        except Exception as e:
+            print(f"Failed to load PDF {pdf_path.name}: {e}")
+else:
+    print(f"No 'knowledge_base' folder found at {kb_folder}")
+
+# 2. Load Website Data
+urls_to_scrape = [
+    "https://yastudy.com",
+    "https://yastudy.com/about",
+    "https://yastudy.com/privacypolicy",
+    "https://yastudy.com/tnc",
+    "https://yastudy.com/contactus",
+
+]
+print("Loading website data...")
+for url in urls_to_scrape:
+    try:
+        web_loader = WebBaseLoader(url)
+        docs.extend(web_loader.load())
+    except Exception as e:
+        print(f"Failed to load URL {url}: {e}")
+
+if not docs:
+    print("No documents were loaded. Exiting.")
+    exit()
+
+print(f"Total documents loaded: {len(docs)}")
+
+# 3. Split the docs into smaller chunks
+text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=1000,
+    chunk_overlap=400
+)
+
+chunks = text_splitter.split_documents(documents=docs)
+print(f"Split into {len(chunks)} chunks.")
+
+# 4. Generate unique, deterministic IDs for each chunk to prevent duplicates
+# Agar chunk ka text same hai, toh UUID same banega aur Qdrant usko overwrite kar dega (duplicate nahi hoga)
+chunk_ids = []
+for chunk in chunks:
+    # Use MD5 hash of the chunk content to create a stable UUID
+    chunk_hash = hashlib.md5(chunk.page_content.encode("utf-8")).hexdigest()
+    chunk_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, chunk_hash))
+    chunk_ids.append(chunk_id)
+
+# 5. Vector Embeddings
+embedding_model = OpenAIEmbeddings(
+    model="text-embedding-3-large"
+)
+
+# 6. Save to Qdrant (Without force_recreate so it appends)
+print("Uploading to Qdrant Vector Database...")
+vector_store = QdrantVectorStore.from_documents(
+    documents=chunks,
+    embedding=embedding_model,
+    url="http://localhost:6333",
+    collection_name="yastudy_knowledge",
+    ids=chunk_ids
+)
+
+print("Indexing of documents done successfully! Data has been appended/updated without duplicates.")

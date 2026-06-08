@@ -26,12 +26,16 @@ else:
 
 # 2. Load Website Data
 urls_to_scrape = [
-    "https://yastudy.com",
-    "https://yastudy.com/about",
-    "https://yastudy.com/privacypolicy",
-    "https://yastudy.com/tnc",
-    "https://yastudy.com/contactus",
-
+   "https://yastudy.com/services/sop",
+   "https://yastudy.com/services/lom",
+   "https://yastudy.com/services/cv",
+   "https://yastudy.com/services/visa",
+   "https://yastudy.com/services/passport",
+   "https://yastudy.com/services/aps",
+   "https://yastudy.com/services/loan",
+   "https://yastudy.com/testprep/ielts",
+   "https://yastudy.com/testprep/german",
+   "https://yastudy.com/mba-india"
 ]
 print("Loading website data...")
 for url in urls_to_scrape:
@@ -71,16 +75,25 @@ embedding_model = OpenAIEmbeddings(
 )
 
 from app.core.config import settings
+from qdrant_client import QdrantClient
 
 # 6. Save to Qdrant (Without force_recreate so it appends)
 print("Uploading to Qdrant Vector Database...")
-vector_store = QdrantVectorStore.from_documents(
-    documents=chunks,
-    embedding=embedding_model,
+
+# We create the client explicitly to increase the timeout for large uploads
+client = QdrantClient(
     url=settings.QDRANT_URL,
     api_key=settings.QDRANT_API_KEY,
-    collection_name=settings.QDRANT_COLLECTION,
-    ids=chunk_ids
+    timeout=60.0
 )
+
+vector_store = QdrantVectorStore(
+    client=client,
+    collection_name=settings.QDRANT_COLLECTION,
+    embedding=embedding_model
+)
+
+# Upload in batches using add_documents
+vector_store.add_documents(documents=chunks, ids=chunk_ids)
 
 print("Indexing of documents done successfully! Data has been appended/updated without duplicates.")

@@ -6,6 +6,7 @@ def get_vector_store() -> QdrantVectorStore:
     embeddings = get_embeddings()
     return QdrantVectorStore.from_existing_collection(
         url=settings.QDRANT_URL,
+        api_key=settings.QDRANT_API_KEY,
         collection_name=settings.QDRANT_COLLECTION,
         embedding=embeddings,
     )

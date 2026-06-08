@@ -70,13 +70,16 @@ embedding_model = OpenAIEmbeddings(
     model="text-embedding-3-large"
 )
 
+from app.core.config import settings
+
 # 6. Save to Qdrant (Without force_recreate so it appends)
 print("Uploading to Qdrant Vector Database...")
 vector_store = QdrantVectorStore.from_documents(
     documents=chunks,
     embedding=embedding_model,
-    url="http://localhost:6333",
-    collection_name="yastudy_knowledge",
+    url=settings.QDRANT_URL,
+    api_key=settings.QDRANT_API_KEY,
+    collection_name=settings.QDRANT_COLLECTION,
     ids=chunk_ids
 )
 

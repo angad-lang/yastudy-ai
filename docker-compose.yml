@@ -1,5 +1,14 @@
 services:
-  vector-db:
-    image: qdrant/qdrant
+  api:
+    build: .
     ports:
-      - 6333:6333
+      - "8000:8000"
+    environment:
+      # These will be read from your server's environment or a local .env file
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - MONGODB_URI=${MONGODB_URI}
+      - QDRANT_URL=${QDRANT_URL}
+      - QDRANT_API_KEY=${QDRANT_API_KEY}
+      - QDRANT_COLLECTION=${QDRANT_COLLECTION}
+    restart: always
+

@@ -11,3 +11,8 @@ uvicorn
 pydantic
 pydantic-settings
 sse-starlette
+langgraph
+langgraph-checkpoint-mongodb
+motor
+pymongo
+beautifulsoup4
